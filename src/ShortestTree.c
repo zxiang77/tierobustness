@@ -15,13 +15,14 @@
 
 struct TreeNode_t {
   TNode **children;
+  TNode *parent;
   igraph_integer_t node_id;
   int f; // distance to d
   int size;
   int ptr;
 };
 
-struct ShortestTree {
+struct ShortestTree_t {
   TNode *root;
   int size;
   int max_nodes;
@@ -30,6 +31,22 @@ struct ShortestTree {
   const igraph_t *g;
 };
 // igraph_vector_size
+
+struct KShortest_t {
+  STree *tree;
+  Path *paths; // minheap
+  int k;
+  igraph_integer_t start;
+};
+
+/*
+ * same node cannot appear twice in a path
+ */
+struct Path_t {
+  int length;
+  TNode *path;
+}
+
 STree *ConstructTree(igraph_t *g, int num_nodes, igraph_integer_t root);
 TNode *ConstructTNode(igraph_integer_t id);
 void DestructTree(STree *tree);
@@ -40,7 +57,7 @@ void BuildShortestTree(STree *tree);
 void BuildShortestTreeHelper(STree *tree, int level, igraph_vector_t *visited, TNode *node);
 
 STree *ConstructTree(igraph_t *g, int num_nodes, igraph_integer_t root){
-  STree *tree = (STree*) malloc(sizeof (STree));
+  STree *tree = (STree*) malloc(sizeof(STree));
   if (tree == NULL) {
       return NULL;
   }
@@ -113,6 +130,7 @@ void AddChildHelper(TNode *parent, TNode *child) {
     parent->size = parent->size + UNIT_LENGTH;
   }
   (parent->ptr)++;
+  child->parent = parent;
   TNode *tmp = (*(parent->children)) + parent->ptr;
   tmp = child;
 }
@@ -153,6 +171,10 @@ void BuildShortestTreeHelper(STree *tree, int level, igraph_vector_t *visited, T
   igraph_vector_destroy(&neighbors);
 }
 
+void PrintTree(STree *tree) {
+
+}
+
 int main(int argc, char const *argv[]) {
   igraph_t g;
   FILE *in_file, *out_file;
@@ -178,9 +200,6 @@ int main(int argc, char const *argv[]) {
   fclose(in_file);
   int vcount = igraph_vcount(&g);
   STree *tree = ConstructTree(&g, vcount, 2);
-
-
-
   // if (out_file) {
   //   // char out = (char) tie_range;
   //
