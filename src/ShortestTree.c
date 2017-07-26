@@ -14,7 +14,8 @@
   */
 
 struct TreeNode_t {
-  TNode **children;
+  //false
+  TNode *children;
   TNode *parent;
   igraph_integer_t node_id;
   int f; // distance to d
@@ -26,8 +27,10 @@ struct ShortestTree_t {
   TNode *root;
   int size;
   int max_nodes;
-  TNode **all_nodes;
+  //false
+  TNode *all_nodes;
   igraph_vector_t has_path;
+  igraph_vector_t lookup;
   const igraph_t *g;
 };
 // igraph_vector_size
@@ -45,6 +48,41 @@ struct KShortest_t {
 struct Path_t {
   int length;
   TNode *path;
+};
+
+igraph_vector_t ConstructIndexLookup (const igraph_t *g) {
+  igraph_vector_t lookup;
+  igraph_vector_t all_verts;
+  igraph_vit_t vit;
+  igraph_vs_t vs;
+  igraph_integer_t max_id;
+  int vcount = igraph_vcount(g);
+  // igraph_vector_init(g, vcount);
+
+  igraph_vs_all(&vs);
+  igraph_vit_create(g, vs, &vit);
+  igraph_vector_init(&lookup, vcount);
+  // IGRAPH_CHECK(igraph_vit_create(g, vs, &vit));
+  // IGRAPH_FINALLY(igraph_vit_destroy, &vit);
+  int i = 0;
+// while(!IGRAPH_VIT_END(vit)) {
+//   long int vertex = IGRAPH_VIT_GET(vit);
+//   printf("%ld\n", vertex);
+//   IGRAPH_VIT_NEXT(vit);
+// }
+
+  while (!IGRAPH_VIT_END(vit)) {
+    long int vertex = IGRAPH_VIT_GET(vit);
+    if(vertex >= vcount) {
+
+      igraph_vector_resize(&lookup, vertex + 1);
+      vcount = vertex;
+    }
+    VECTOR(lookup)[ vertex ] = i;
+    IGRAPH_VIT_NEXT(vit);
+    i++;
+  }
+  return lookup;
 }
 
 STree *ConstructTree(igraph_t *g, int num_nodes, igraph_integer_t root);
@@ -65,14 +103,24 @@ STree *ConstructTree(igraph_t *g, int num_nodes, igraph_integer_t root){
       num_nodes = 65535;
   }
   TNode *root_node = ConstructTNode(root);
-  TNode **all = (TNode **) malloc(num_nodes * sizeof(TNode *));
+  TNode *all = (TNode *) malloc(num_nodes * sizeof(TNode));
+  int i;
+  TNode *tmp;
+  for(i = 0; i < num_nodes; i++) {
+    tmp = (all + i);
+    tmp = NULL;
+  }
+
   igraph_vector_t has_path;
   igraph_vector_init(&has_path, num_nodes);
-
+  igraph_vector_t lookup = ConstructIndexLookup(g);
+  tmp = (all + (int)VECTOR(lookup)[root]);
+  tmp = root_node;
+  printf("[address in constructor] %p\n", (all + (int)VECTOR(lookup)[root]));
   // TNode *root;
   // int size;
   // int max_nodes;
-  // TNode **all_nodes;
+  // TNode *all_nodes;
   // igraph_vector_t has_path;
   tree->g = g;
   tree->root = root_node;
@@ -80,13 +128,15 @@ STree *ConstructTree(igraph_t *g, int num_nodes, igraph_integer_t root){
   tree->max_nodes = num_nodes;
   tree->all_nodes = all;
   tree->has_path = has_path;
+  tree->lookup = lookup;
   return tree;
 }
 
 TNode *ConstructTNode(igraph_integer_t id) {
   TNode *node = (TNode*) malloc(sizeof (TNode));
+  printf("[constructing node] %d\n", id);
 
-  TNode **children = (TNode **)malloc(UNIT_LENGTH * sizeof(TNode *));
+  TNode *children = (TNode *)malloc(UNIT_LENGTH * sizeof(TNode));
   node->children = children;
   node->node_id = id;
   node->f = 0;
@@ -100,7 +150,7 @@ void DestructTree(STree *tree) {
   int i;
   for(i = 0; i < tree->max_nodes; i++) {
     if(VECTOR(tree->has_path)[ (int long) i ]) {
-      DestructTNode( *(tree->all_nodes + i) );
+      DestructTNode( tree->all_nodes + i );
     }
   }
   igraph_vector_destroy(&tree->has_path);
@@ -114,24 +164,29 @@ void DestructTNode(TNode *node) {
 void AddChild(STree *tree, igraph_integer_t start, igraph_integer_t dest) {
   TNode *s_node;
   TNode *d_node;
-  if(! *(tree->all_nodes + start)) {
-    *(tree->all_nodes + start) = ConstructTNode((igraph_integer_t)start);
+  printf("[test start id : addr] %d : %p\n", start, *(tree->all_nodes + (int)VECTOR(tree->lookup)[ (int) start ]));
+  // printf("[node id : addr] %d : %p\n", start, *(tree->all_nodes + (int)VECTOR(tree->lookup)[ (int) start ]));
+  if(! (tree->all_nodes + (int)VECTOR(tree->lookup)[ (int) start ])) {
+    printf("create new node start %d\n", start);
+    TNode *tmp = (tree->all_nodes + (int)VECTOR(tree->lookup)[ (int) start ]);
+    tmp = ConstructTNode((igraph_integer_t)start);
   }
-  s_node = *(tree->all_nodes + (int)start);
-  d_node = *(tree->all_nodes + (int) dest);
+  s_node = tree->all_nodes + (int) VECTOR(tree->lookup)[ (int) start ];
+  d_node = tree->all_nodes + (int) VECTOR(tree->lookup)[ (int) dest ];
   AddChildHelper(d_node, s_node);
   (tree->size)++;
-  VECTOR(tree->has_path)[(int) start ] = 1;
+
+  VECTOR(tree->has_path)[(int) VECTOR(tree->lookup)[ (int) start ] ] = 1;
 }
 
 void AddChildHelper(TNode *parent, TNode *child) {
   if (parent->ptr == parent->size) {
-    parent->children = (TNode **)realloc(parent->children, (parent->size + UNIT_LENGTH) * sizeof(TNode *));
+    parent->children = (TNode *)realloc(parent->children, (parent->size + UNIT_LENGTH) * sizeof(TNode));
     parent->size = parent->size + UNIT_LENGTH;
   }
-  (parent->ptr)++;
+  parent->ptr = parent->ptr + 1;
   child->parent = parent;
-  TNode *tmp = (*(parent->children)) + parent->ptr;
+  TNode *tmp = parent->children + parent->ptr;
   tmp = child;
 }
 
@@ -149,30 +204,48 @@ void BuildShortestTree(STree *tree) {
 }
 
 void BuildShortestTreeHelper(STree *tree, int level, igraph_vector_t *visited, TNode *node) {
+  // printf("[node %d] visited\n", node->node_id);
+  if (VECTOR(*visited)[ (int) VECTOR(tree->lookup)[(int) node->node_id] ]) {return;}
   if (level == MAX_DEPTH) {return;}
   igraph_vector_t neighbors;
   const igraph_t *g = tree->g;
   int vcount = tree->max_nodes;
 
   igraph_vector_init(&neighbors, vcount);
-  igraph_neighbors(g, &neighbors, node->node_id, IGRAPH_IN);
-  (*(tree->all_nodes + node->node_id))->f = level;
-  int nneighbors = igraph_vector_size(&neighbors);
-  int i ;
-  for (i = 0; i < nneighbors; i++ ) {
-    int long cur_node_id = VECTOR(neighbors)[ i ];
-    if (!VECTOR(*visited)[(int) cur_node_id ]) {
-      AddChild(tree, cur_node_id, node->node_id);
-      VECTOR( *visited )[ (int) cur_node_id ] = 1;
 
-      BuildShortestTreeHelper(tree, level + 1, visited, *(tree->all_nodes + cur_node_id));
+  igraph_neighbors(g, &neighbors, node->node_id, IGRAPH_IN);
+  // int i;
+  // for(int i = 0; i < vc; i++) {
+  //   printf("[vector id for %d] %f\n", node->node_id, VECTOR(neighbors)[i]);
+  // }
+  // printf("[testing] %d\n", (int)VECTOR(tree->lookup)[ (int) node->node_id ]);
+
+  ((tree->all_nodes + (int)VECTOR(tree->lookup)[ (int) node->node_id ]))->f = level;
+  int nneighbors = igraph_vector_size(&neighbors);
+  int j ;
+  for (j = 0; j < nneighbors; j++ ) {
+    int long cur_node_id = VECTOR(neighbors)[ j ];
+    if(!cur_node_id) {break;}
+    // printf("[node %ld] visited\n", cur_node_id);
+    if (!VECTOR(*visited)[(int) VECTOR(tree->lookup)[ (int) cur_node_id ] ]) {
+      AddChild(tree, cur_node_id, node->node_id);
+      VECTOR( *visited )[ (int) VECTOR(tree->lookup)[ (int) cur_node_id ] ] = 1;
+
+      BuildShortestTreeHelper(tree, level + 1, visited, tree->all_nodes + \
+                             (int)VECTOR(tree->lookup)[ (int) cur_node_id ]);
     }
   }
   igraph_vector_destroy(&neighbors);
 }
 
-void PrintTree(STree *tree) {
-
+void PrintTree(TNode *node, int depth) {
+  if(!node) return;
+  printf("[node depth]%d, [node id] %d\n", depth, node->node_id);
+  int i;
+  printf("[ptr size] %d\n", node->ptr);
+  for(i = 0; i < node->ptr; i++) {
+    PrintTree(node->children + i, depth + 1);
+  }
 }
 
 int main(int argc, char const *argv[]) {
@@ -200,6 +273,8 @@ int main(int argc, char const *argv[]) {
   fclose(in_file);
   int vcount = igraph_vcount(&g);
   STree *tree = ConstructTree(&g, vcount, 2);
+  BuildShortestTree(tree);
+  PrintTree(tree->root, 0);
   // if (out_file) {
   //   // char out = (char) tie_range;
   //

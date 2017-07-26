@@ -10,7 +10,7 @@
 struct Path_t {
   int length;
   TNode *path;
-}
+};
 
 struct MinHeap_t {
   Path *paths;
@@ -24,7 +24,7 @@ void DestructHeap(MinHeap *heap);
 void AddHeap(MinHeap *heap, Path *path);
 Path *HeapPop(MinHeap *heap);
 void SiftUp(MinHeap *heap, int node_index);
-void Swap();
+void Swap(Path *p1, Path *p2);
 
 MinHeap *ConstructHeap() {
   MinHeap *heap = malloc(sizeof(MinHeap));
@@ -49,9 +49,10 @@ void DestructHeap(MinHeap *heap){
 void AddHeap(MinHeap *heap, Path *path){
 
   if(heap->ptr == heap->size) {
-    heap->paths = realloc(heap->path, heap->size * 2 + 1 );
+    heap->paths = realloc(heap->paths, heap->size * 2 + 1 );
   }
-  *(heap->paths + heap->ptr) = path;
+  Path *tmp = (heap->paths + heap->ptr);
+  tmp = path;
   SiftUp(heap, heap->ptr);
   (heap->ptr)++;
 }
@@ -59,10 +60,10 @@ void AddHeap(MinHeap *heap, Path *path){
 // #define RCHILD(x) 2 * x + 2
 // #define PARENT(x) (x - 1) / 2
 Path *HeapPop(MinHeap *heap){
-  Path *pop = *(heap->paths);
-  *(heap->paths) = NULL;
+  Path *pop = heap->paths;
+  heap->paths = NULL;
   (heap->ptr)--;
-  Swap(*(heap->paths), *(heap->paths + heap->ptr));
+  Swap(heap->paths, heap->paths + heap->ptr);
   SiftUp(heap, heap->ptr);
   return pop;
 }
@@ -72,8 +73,8 @@ void SiftUp(MinHeap *heap, int node_index) {
   int parent_index, tmp;
   if (node_index != 0) {
         parent_index = PARENT(node_index);
-        if((*(heap->paths + parent_index))->length > (*(heap->paths + node_index))->length) {
-              Swap( *(heap->paths + parent_index), *(heap->paths + node_index));
+        if((heap->paths + parent_index)->length > (heap->paths + node_index)->length) {
+              Swap( heap->paths + parent_index, heap->paths + node_index);
               SiftUp(heap, parent_index);
         }
   }
