@@ -1,7 +1,11 @@
+makeHeapTest:
+	gcc test2wheap.c -I /usr/local/include/igraph -L /usr/local/lib -ligraph
+	./a.out
+
 makeAndTest:
 	gcc ShortestTree.c -I /usr/local/include/igraph -L /usr/local/lib -ligraph
 	./a.out /Users/zilixiang/SDL/tie_range/data/simmons81.graphml
-	
+
 makeTree:
 	gcc ShortestTree.c -I /usr/local/include/igraph -L /usr/local/lib -ligraph
 

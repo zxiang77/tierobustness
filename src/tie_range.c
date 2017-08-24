@@ -40,11 +40,12 @@ struct ShortestTree {
 
 // static PyObject *ignp_fun_findNeighbors(PyObject *self, PyObject *args);
 
-static int tie_range_BBFS(const igraph_t *g, igraph_integer_t eid,
+static int tie_range_BBFS(const igraph_t *g, igraph_integer_t eid,\
                      int as_directed, int range_lim);
-                     void build_queue_from_igraph(Queue* queue, igraph_vector_t *neighbors, int *found, igraph_vector_t *build_visited, igraph_vector_t *check_visited);
 
-static int tie_range_BBFS(const igraph_t *g, igraph_integer_t eid,
+void build_queue_from_igraph(Queue* queue, igraph_vector_t *neighbors, int *found, igraph_vector_t *build_visited, igraph_vector_t *check_visited);
+
+static int tie_range_BBFS(const igraph_t *g, igraph_integer_t eid,\
                      int as_directed, int range_lim) {
   igraph_integer_t s_node; // id of source
   igraph_integer_t d_node; // id of dest
