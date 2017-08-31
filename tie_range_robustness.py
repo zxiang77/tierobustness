@@ -1,6 +1,8 @@
 # code adapted from gist: https://gist.github.com/ALenfant/5491853
 from igraph import *
 import Queue
+import operator
+from types import *
 
 class k_shortest(object):
     """docstring for k_shortest."""
@@ -173,7 +175,7 @@ class path_node_removal(object):
         del node_counts[src]
         del node_counts[dest]
 
-        import operator
+
         max_node = max(node_counts.iteritems(), key = operator.itemgetter(1))
         max_path = max(path_counts.iteritems(), key = operator.itemgetter(1))
 
@@ -181,11 +183,11 @@ class path_node_removal(object):
         max_paths = []
         # max_nodes.append(max_node)
         # max_paths.append(max_path)
-        for k, v in node_counts:
+        for k, v in node_counts.iteritems():
             if v == max_node[1]:
                 max_nodes.append(k)
 
-        for k, v in path_counts:
+        for k, v in path_counts.iteritems():
             if v == max_path[1]:
                 max_paths.append(k)
 
@@ -193,75 +195,124 @@ class path_node_removal(object):
         # path_count = max_path[1]
         return max_nodes, max_node[1], max_paths, max_path[1]
 
-    self.paths_removed = []
+    def remove_node(self, A, rm_node):
+        i = 0
+        lenA = len(A)
+        removed_paths = []
+        while i < lenA:
+            if rm_node in A[i]:
+                removed_paths.append(A[i])
+                del A[i]
+                lenA -= 1
+            else:
+                i += 1
+        return removed_paths
+
+    def remove_path(self, A, rm_path):
+        i = 0
+        lenA = len(A)
+        removed_paths = []
+        while i < lenA:
+            lst = A[i]
+            found = False
+            for j in range(len(lst) - 1):
+                if lst[j] == rm_path[0] and lst[j + 1] == rm_path[1]:
+                    if i < lenA:
+                        found = True
+                        removed_paths.append(A[i])
+                        del A[i]
+                        lenA -= 1
+                    break
+            if not found:
+                i += 1
+
+        return removed_paths
 
 
-    def removal(self, A):
+    def removal(self, A, removals = []):
         # count how many times a node appears in the ksp
         # node_counts = {}
         # path_counts = {}
         # print "lenA on start: {}".format(len(A))
         # print A
+        if len(A) == 0:
+            self.order.append(list(removals))
+            return
 
         max_nodes, node_count, max_paths, path_count = self.get_most_frequent_el(A)
 
         # consider both
-        # if node_count == path_count:
-        #     removed = []
-        #     for node in max_nodes:
-        #
+        max_candidates = []
+        if node_count >= path_count:
+            max_candidates.extend(max_nodes)
 
-        max_node = max_nodes[0]
-        max_path = max_paths[0]
-        if max_node[1] > max_path[1]:
-            rm_node = max_node[0]
-            # print "node: {}".format(rm_node)
-            self.order.append(rm_node)
+        if node_count <= path_count:
+            max_candidates.extend(max_paths)
 
-            i = 0
-            lenA = len(A)
-            while i < lenA:
-                if rm_node in A[i]:
-                    del A[i]
-                    lenA -= 1
-                else:
-                    i += 1
-        else:
-            rm_path = max_path[0]
-            # print rm_path
-            self.order.append(rm_path)
 
-            i = 0
-            lenA = len(A)
-            while i < lenA:
-                lst = A[i]
-                found = False
-                for j in range(len(lst) - 1):
-                    if lst[j] == rm_path[0] and lst[j + 1] == rm_path[1]:
-                        if i < lenA:
-                            found = True
-                            del A[i]
-                            lenA -= 1
-                        break
-                if not found:
-                    i += 1
+        for candidate in max_candidates:
+            removals.append(candidate)
+            if type(candidate) == IntType:
+                removed_paths = self.remove_node(A, candidate)
+            else:
+                removed_paths = self.remove_path(A, candidate)
+            self.removal(A, removals)
+            A.extend(removed_paths)
+            del removals[-1]
+
+
+        # if max_node[1] > max_path[1]:
+            # rm_node = max_node[0]
+            # # print "node: {}".format(rm_node)
+            # self.order.append(rm_node)
+            #
+            # i = 0
+            # lenA = len(A)
+            # while i < lenA:
+            #     if rm_node in A[i]:
+            #         del A[i]
+            #         lenA -= 1
+            #     else:
+            #         i += 1
+        # else:
+            # rm_path = max_path[0]
+            # # print rm_path
+            # self.order.append(rm_path)
+            #
+            # i = 0
+            # lenA = len(A)
+            # while i < lenA:
+            #     lst = A[i]
+            #     found = False
+            #     for j in range(len(lst) - 1):
+            #         if lst[j] == rm_path[0] and lst[j + 1] == rm_path[1]:
+            #             if i < lenA:
+            #                 found = True
+            #                 del A[i]
+            #                 lenA -= 1
+            #             break
+            #     if not found:
+            #         i += 1
 
         # print "lenA on end: {}".format(len(A))
-        if len(A) > 0:
-            return self.removal(A)
         return
 
 ks = k_shortest("data/simmons81.graphml")
 
-A, A_costs = ks.yen_algo(4, 8, 10)
+A, A_costs = ks.yen_algo(4, 12, 10)
 
 rm = path_node_removal()
 rm.removal(A)
 
-print rm.order
+print "input A: {}".format(A)
 
-# for i in range(len(A)):
-#     print "[path]: "
-#     print A[i]
-#     print "\n[length]"
-#     print A_costs[i]
+i = 0
+min_len = 10000
+possible_len = set()
+for path in rm.order:
+    min_len = min(min_len, len(path))
+    possible_len.add(len(path))
+    # print "path {}: {}".format(i, path)
+    i += 1
+
+print "num paths: {} min_len: {}, all_len: {}".format(i, min_len, possible_len)
